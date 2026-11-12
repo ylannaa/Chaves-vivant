@@ -213,9 +213,11 @@ export default function App() {
   const [movementLoading, setMovementLoading] = useState(true);
   const [movementSaving, setMovementSaving] = useState(false);
   const [movementError, setMovementError] = useState("");
-  useEffect(() => {
+  async function loadMovements() {
+    setMovementLoading(true);
+    setMovementError("");
     try { localStorage.removeItem("vivant-key-control-v1"); } catch { /* O banco é a fonte dos registros. */ }
-    fetch("/api/key-movements").then(async (response) => {
+    await fetch("/api/key-movements").then(async (response) => {
       if (!response.ok) throw new Error();
       const rows: { unitId: string; movement: Movement }[] = await response.json();
       setUnits(makeInitialUnits().map((unit) => {
@@ -223,9 +225,11 @@ export default function App() {
         return { ...unit, history, status: history[0]?.status ?? "box",
           responsible: history[0]?.status === "box" ? "" : history[0]?.person ?? "" };
       }));
-      setMovementLoading(false);
-    }).catch(() => setMovementError("Não foi possível carregar os registros. Recarregue a página."));
-  }, []);
+    }).catch(() => setMovementError("Não foi possível carregar os registros. Tente novamente."))
+      .finally(() => setMovementLoading(false));
+  }
+
+  useEffect(() => { void loadMovements(); }, []);
 
   async function persistMovement(unitId: string, movement: Movement) {
     setMovementSaving(true);
@@ -281,7 +285,7 @@ export default function App() {
 
   async function registerMovement(event: FormEvent) {
     event.preventDefault();
-    if (!selected || !form.person.trim() || !form.company) return;
+    if (!selected || movementLoading || movementSaving || !form.person.trim() || !form.company) return;
     const movement: Movement = {
       id: crypto.randomUUID(),
       status: form.status,
@@ -309,7 +313,7 @@ export default function App() {
   }
 
   async function quickReturn() {
-    if (!selected) return;
+    if (!selected || movementLoading || movementSaving) return;
     const last = selected.history[0];
     const movement: Movement = {
       id: crypto.randomUUID(),
@@ -491,7 +495,7 @@ export default function App() {
                   </div>
                 </div>
                 {selected.status === "staff" && (
-                  <button className="return-button" disabled={movementLoading || movementSaving || !!movementError} onClick={quickReturn}>
+                  <button className="return-button" disabled={movementLoading || movementSaving} onClick={quickReturn}>
                     <Icon name="box" size={17} /> Devolver para a caixa
                   </button>
                 )}
@@ -560,7 +564,9 @@ export default function App() {
                 <p className="timestamp-note">
                   <Icon name="clock" size={14} /> Data e hora serão registradas automaticamente
                 </p>
-                {movementError && <p className="form-error" role="alert">{movementError}</p>}
+                {movementError && <div role="alert"><p className="form-error">{movementError}</p>
+                  <button type="button" disabled={movementLoading || movementSaving} onClick={() => void loadMovements()}>Tentar carregar novamente</button>
+                </div>}
                 <button className="submit-button" type="submit" disabled={movementLoading || movementSaving}>
                   <Icon name="check" size={17} /> {movementLoading ? "Carregando registros..." : movementSaving ? "Salvando..." : "Salvar movimentação"}
                 </button>
