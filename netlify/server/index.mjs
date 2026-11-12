@@ -1,8 +1,9 @@
+import { getDatabase } from "@netlify/database";
 import { desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/netlify-db";
 import { keyQuantities, keyMovements } from "../../db/schema.ts";
 
-const db = drizzle();
+const db = drizzle({ client: getDatabase() });
 export const config = { path: "/api/*" };
 
 export default async function handler(request) {
