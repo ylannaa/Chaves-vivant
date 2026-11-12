@@ -1,0 +1,53 @@
+{
+  "version": "8",
+  "dialect": "postgres",
+  "id": "d62cc72e-d16d-4232-835a-8b8c66ed805c",
+  "prevIds": [
+    "00000000-0000-0000-0000-000000000000"
+  ],
+  "ddl": [
+    {
+      "isRlsEnabled": false,
+      "name": "key_quantities",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "unit_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "key_quantities"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "quantity",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "key_quantities"
+    },
+    {
+      "columns": [
+        "unit_id"
+      ],
+      "nameExplicit": false,
+      "name": "key_quantities_pkey",
+      "schema": "public",
+      "table": "key_quantities",
+      "entityType": "pks"
+    }
+  ],
+  "renames": []
+}

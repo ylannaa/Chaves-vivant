@@ -33,8 +33,8 @@ const TOWERS: Record<TowerId, { short: string; full: string; number: string }> =
 const STATUS: Record<Status, { label: string; color: string; light: string }> = {
   box: { label: "Na caixa", color: "#1E3A2F", light: "#E7EEEA" },
   staff: { label: "Com colaborador", color: "#D1BE8C", light: "#F5F0E3" },
-  delivered: { label: "Entregue ao cliente", color: "#3B6E8C", light: "#E6EFF4" },
-  missing: { label: "Sumiu", color: "#B84A39", light: "#F8E9E6" },
+  delivered: { label: "Entregue ao cliente", color: "#278047", light: "#E7F4EB" },
+  missing: { label: "Perdida", color: "#C13232", light: "#F8E9E6" },
 };
 
 const SEED_PEOPLE = ["Marina Costa", "Rafael Martins", "Ana Luiza", "Carlos Eduardo"];
@@ -214,6 +214,47 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
   const [mobileTab, setMobileTab] = useState<"map" | "movement">("map");
   const [toast, setToast] = useState("");
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [quantityDrafts, setQuantityDrafts] = useState<Record<string, string>>({});
+  const [quantityLoading, setQuantityLoading] = useState(true);
+  const [quantitySaving, setQuantitySaving] = useState(false);
+  const [quantityError, setQuantityError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/key-quantities")
+      .then(async (response) => {
+        if (!response.ok) throw new Error();
+        const rows: { unitId: string; quantity: number }[] = await response.json();
+        setQuantities(Object.fromEntries(rows.map((row) => [row.unitId, row.quantity])));
+      })
+      .catch(() => setQuantityError("Não foi possível carregar as quantidades. Tente recarregar a página."))
+      .finally(() => setQuantityLoading(false));
+  }, []);
+
+  async function saveQuantity(event: FormEvent) {
+    event.preventDefault();
+    const unitId = selectedId;
+    const value = quantityDrafts[unitId] ?? String(quantities[unitId] ?? "");
+    if (!value.trim()) return;
+    const quantity = Number(value);
+    if (!Number.isInteger(quantity) || quantity < 0 || quantity > 2147483647) return;
+    setQuantitySaving(true);
+    setQuantityError("");
+    try {
+      const response = await fetch("/api/key-quantities", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ unitId, quantity }),
+      });
+      if (!response.ok) throw new Error();
+      setQuantities((current) => ({ ...current, [unitId]: quantity }));
+      setToast("Quantidade de chaves salva");
+    } catch {
+      setQuantityError("Não foi possível salvar a quantidade. Tente novamente.");
+    } finally {
+      setQuantitySaving(false);
+    }
+  }
   const [form, setForm] = useState({
     status: "staff" as Status,
     copy: "Cópia 1" as CopyType,
@@ -377,7 +418,7 @@ export default function App() {
               <option value="box">Na caixa</option>
               <option value="staff">Com colaborador</option>
               <option value="delivered">Entregue ao cliente</option>
-              <option value="missing">Sumiu</option>
+              <option value="missing">Perdida</option>
             </select>
             <span className="filter-count">
               {hasActiveFilter ? `${filtered.length} encontrados` : "68 unidades"}
@@ -447,6 +488,27 @@ export default function App() {
                     {STATUS[selected.status].label}
                   </span>
                 </div>
+                <form className="quantity-form" onSubmit={saveQuantity}>
+                  <label htmlFor="key-quantity">Quantidade de chaves</label>
+                  <div>
+                    <input
+                      id="key-quantity"
+                      type="number"
+                      min="0"
+                      max="2147483647"
+                      step="1"
+                      required
+                      placeholder={quantityLoading ? "Carregando..." : "Ex.: 1 ou 2"}
+                      disabled={quantityLoading || quantitySaving}
+                      value={quantityDrafts[selected.id] ?? String(quantities[selected.id] ?? "")}
+                      onChange={(event) => setQuantityDrafts((current) => ({ ...current, [selected.id]: event.target.value }))}
+                    />
+                    <button type="submit" disabled={quantityLoading || quantitySaving}>
+                      {quantitySaving ? "Salvando..." : "Salvar quantidade"}
+                    </button>
+                  </div>
+                  {quantityError && <p role="alert">{quantityError}</p>}
+                </form>
                 {selected.status === "staff" && (
                   <button className="return-button" onClick={quickReturn}>
                     <Icon name="box" size={17} /> Devolver para a caixa
