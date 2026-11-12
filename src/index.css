@@ -751,49 +751,29 @@
   }
 }
 
-.quantity-form {
-  margin-top: 14px;
-}
-.quantity-form label {
-  display: block;
-  margin-bottom: 5px;
-  color: #56655e;
-  font-size: 10px;
-  font-weight: 700;
-}
-.quantity-form > div {
-  display: flex;
-  gap: 8px;
-}
-.quantity-form input {
-  width: 100%;
-  min-width: 0;
-  padding: 9px 10px;
-  border: 1px solid #dfe3e0;
-  border-radius: 9px;
-  background: #fbfbfa;
-  font-size: 11px;
-}
-.quantity-form button {
-  padding: 9px 12px;
-  border-radius: 9px;
-  background: #1e3a2f;
-  color: white;
-  font-size: 10px;
-  white-space: nowrap;
-}
-.quantity-form input:focus-visible,
-.quantity-form button:focus-visible {
-  outline: 2px solid #789086;
-  outline-offset: 2px;
-}
-.quantity-form button:disabled,
-.quantity-form input:disabled {
-  opacity: 0.6;
-  cursor: wait;
-}
-.quantity-form > p {
-  margin-top: 6px;
-  color: #c13232;
-  font-size: 10px;
+.detail-corner { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.detail-corner > span { display: flex; align-items: center; gap: 5px; padding: 6px 9px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+.quantity-form { width: 140px; }
+.quantity-form label { display: block; margin-bottom: 5px; color: #56655e; font-size: 11px; font-weight: 600; }
+.quantity-form > div { display: flex; gap: 5px; }
+.quantity-form input { width: 70px; min-width: 0; padding: 8px; border: 1px solid #d4ddd7; border-radius: 8px; background: #f4f7f4; font-size: 15px; text-align: center; }
+.quantity-form button { padding: 8px; border-radius: 8px; color: #fff; background: #1e3a2f; font-size: 11px; }
+.quantity-form > p, .form-error { margin: 8px 0; color: #c13232; font-size: 12px; }
+.form-help { margin: -2px 0 20px; font-size: 12px; line-height: 1.6; color: #758078; }
+.status-options { margin: 0 0 22px; padding: 0; border: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.status-options legend, .step-label { margin-bottom: 10px; font-size: 12px; font-weight: 700; color: #30483b; }
+.movement-form .status-options label { display: flex; align-items: center; gap: 8px; padding: 12px 10px; margin: 0; border: 1px solid #e1e5e0; border-radius: 10px; font-size: 11px; cursor: pointer; background: #fbfcfa; }
+.movement-form .status-options label.chosen { border-color: #52715e; background: #edf3ed; box-shadow: inset 0 0 0 1px #52715e; color: #1e3a2f; }
+.movement-form .status-options input { width: 14px; height: 14px; padding: 0; margin: 0; accent-color: #1e3a2f; }
+.status-dot { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; }
+.movement-form > label { margin-bottom: 16px; font-size: 12px; }
+.movement-form > label input, .movement-form > label select, .movement-form textarea { margin-top: 7px; padding: 12px; font-size: 13px; }
+.movement-form .submit-button { height: 44px; font-size: 12px; }
+.timestamp-note { margin-bottom: 16px; font-size: 10px; }
+button:disabled, input:disabled { opacity: .55; cursor: wait; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #789086; outline-offset: 3px; }
+@media (max-width: 380px) {
+  .status-options { grid-template-columns: 1fr; }
+  .detail-topline { gap: 8px; }
+  .quantity-form { width: 120px; }
 }

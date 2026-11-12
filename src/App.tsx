@@ -2,13 +2,11 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 type TowerId = "energie" | "harmonie";
 type Status = "box" | "staff" | "delivered" | "missing";
-type CopyType = "Cópia 1" | "Cópia 2" | "Jogo completo";
 
 type Movement = {
   id: string;
   status: Status;
   previousStatus: Status;
-  copy: CopyType;
   person: string;
   company: string;
   note: string;
@@ -37,65 +35,15 @@ const STATUS: Record<Status, { label: string; color: string; light: string }> = 
   missing: { label: "Perdida", color: "#C13232", light: "#F8E9E6" },
 };
 
-const SEED_PEOPLE = ["Marina Costa", "Rafael Martins", "Ana Luiza", "Carlos Eduardo"];
-const SEED_COMPANIES = ["Engenharia", "Assistência Técnica", "Terceirizado", "Cliente"];
-
 function makeInitialUnits(): Unit[] {
-  const units: Unit[] = [];
-  (["energie", "harmonie"] as TowerId[]).forEach((tower, towerIndex) => {
-    for (let floor = 1; floor <= 34; floor += 1) {
-      for (let ending = 1; ending <= 2; ending += 1) {
-        const apartment = floor * 100 + ending;
-        const pattern = (floor * 3 + ending + towerIndex * 5) % 17;
-        const status: Status =
-          pattern === 0 ? "missing" : pattern < 4 ? "delivered" : pattern < 8 ? "staff" : "box";
-        const responsible =
-          status === "box" ? "" : SEED_PEOPLE[(floor + ending + towerIndex) % SEED_PEOPLE.length];
-        const date = new Date(2025, 4, 20 + ((floor + ending) % 9), 8 + (floor % 9), ending * 14);
-        units.push({
-          id: `${tower}-${apartment}`,
-          tower,
-          apartment,
-          floor,
-          status,
-          responsible,
-          history:
-            status === "box"
-              ? []
-              : [
-                  {
-                    id: `seed-${tower}-${apartment}`,
-                    status,
-                    previousStatus: "box",
-                    copy: ending === 1 ? "Cópia 1" : "Jogo completo",
-                    person: responsible,
-                    company: SEED_COMPANIES[(floor + towerIndex) % SEED_COMPANIES.length],
-                    note:
-                      status === "delivered"
-                        ? "Entrega definitiva"
-                        : status === "missing"
-                          ? "Não localizada após conferência"
-                          : floor % 2
-                            ? "Vistoria"
-                            : "Reparo",
-                    date: date.toISOString(),
-                  },
-                ],
-        });
-      }
-    }
-  });
-  return units;
-}
-
-function loadUnits(): Unit[] {
-  try {
-    const saved = localStorage.getItem("vivant-key-control-v1");
-    if (saved) return JSON.parse(saved) as Unit[];
-  } catch {
-    // A aplicação continua com os dados iniciais caso o armazenamento esteja indisponível.
-  }
-  return makeInitialUnits();
+  return (["energie", "harmonie"] as TowerId[]).flatMap((tower) =>
+    Array.from({ length: 68 }, (_, index) => {
+      const floor = Math.floor(index / 2) + 1;
+      const apartment = floor * 100 + (index % 2) + 1;
+      return { id: `${tower}-${apartment}`, tower, apartment, floor,
+        status: "box" as Status, responsible: "", history: [] };
+    }),
+  );
 }
 
 function Icon({
@@ -207,7 +155,7 @@ function downloadCsv(units: Unit[]) {
 }
 
 export default function App() {
-  const [units, setUnits] = useState<Unit[]>(loadUnits);
+  const [units, setUnits] = useState<Unit[]>(makeInitialUnits);
   const [tower, setTower] = useState<TowerId>("energie");
   const [selectedId, setSelectedId] = useState("energie-101");
   const [search, setSearch] = useState("");
@@ -257,15 +205,45 @@ export default function App() {
   }
   const [form, setForm] = useState({
     status: "staff" as Status,
-    copy: "Cópia 1" as CopyType,
     person: "",
     company: "",
     note: "",
   });
 
+  const [movementLoading, setMovementLoading] = useState(true);
+  const [movementSaving, setMovementSaving] = useState(false);
+  const [movementError, setMovementError] = useState("");
   useEffect(() => {
-    localStorage.setItem("vivant-key-control-v1", JSON.stringify(units));
-  }, [units]);
+    try { localStorage.removeItem("vivant-key-control-v1"); } catch { /* O banco é a fonte dos registros. */ }
+    fetch("/api/key-movements").then(async (response) => {
+      if (!response.ok) throw new Error();
+      const rows: { unitId: string; movement: Movement }[] = await response.json();
+      setUnits(makeInitialUnits().map((unit) => {
+        const history = rows.filter((row) => row.unitId === unit.id).map((row) => row.movement);
+        return { ...unit, history, status: history[0]?.status ?? "box",
+          responsible: history[0]?.status === "box" ? "" : history[0]?.person ?? "" };
+      }));
+      setMovementLoading(false);
+    }).catch(() => setMovementError("Não foi possível carregar os registros. Recarregue a página."));
+  }, []);
+
+  async function persistMovement(unitId: string, movement: Movement) {
+    setMovementSaving(true);
+    setMovementError("");
+    try {
+      const response = await fetch("/api/key-movements", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ unitId, movement }),
+      });
+      if (!response.ok) throw new Error();
+      const saved: Movement = await response.json();
+      Object.assign(movement, saved);
+      return true;
+    } catch {
+      setMovementError("Não foi possível salvar. Confira sua conexão e tente novamente.");
+      return false;
+    } finally { setMovementSaving(false); }
+  }
 
   useEffect(() => {
     if (!toast) return;
@@ -292,27 +270,28 @@ export default function App() {
 
   function changeTower(nextTower: TowerId) {
     setTower(nextTower);
-    setSelectedId(`${nextTower}-101`);
+    chooseUnit(`${nextTower}-101`);
   }
 
   function chooseUnit(id: string, goToMovement = false) {
     setSelectedId(id);
-    if (goToMovement && window.innerWidth < 1040) setMobileTab("movement");
+    setForm({ status: "staff", person: "", company: "", note: "" });
+    if (goToMovement && window.innerWidth <= 860) setMobileTab("movement");
   }
 
-  function registerMovement(event: FormEvent) {
+  async function registerMovement(event: FormEvent) {
     event.preventDefault();
     if (!selected || !form.person.trim() || !form.company) return;
     const movement: Movement = {
       id: crypto.randomUUID(),
       status: form.status,
       previousStatus: selected.status,
-      copy: form.copy,
       person: form.person.trim(),
       company: form.company,
       note: form.note.trim(),
       date: new Date().toISOString(),
     };
+    if (!(await persistMovement(selected.id, movement))) return;
     setUnits((current) =>
       current.map((unit) =>
         unit.id === selected.id
@@ -325,23 +304,23 @@ export default function App() {
           : unit,
       ),
     );
-    setForm((current) => ({ ...current, person: "", note: "" }));
+    setForm({ status: "staff", person: "", company: "", note: "" });
     setToast(`Movimentação do apto ${selected.apartment} registrada`);
   }
 
-  function quickReturn() {
+  async function quickReturn() {
     if (!selected) return;
     const last = selected.history[0];
     const movement: Movement = {
       id: crypto.randomUUID(),
       status: "box",
       previousStatus: selected.status,
-      copy: last?.copy ?? "Jogo completo",
       person: last?.person ?? selected.responsible,
       company: last?.company ?? "Engenharia",
       note: "Devolução rápida para a caixa",
       date: new Date().toISOString(),
     };
+    if (!(await persistMovement(selected.id, movement))) return;
     setUnits((current) =>
       current.map((unit) =>
         unit.id === selected.id
@@ -478,6 +457,7 @@ export default function App() {
                     <h2>Apto {selected.apartment}</h2>
                     <p>{selected.floor}º andar · {TOWERS[selected.tower].full.replace("—", "-")}</p>
                   </div>
+                  <div className="detail-corner">
                   <span
                     style={{
                       background: STATUS[selected.status].light,
@@ -487,9 +467,8 @@ export default function App() {
                     <i style={{ background: STATUS[selected.status].color }} />
                     {STATUS[selected.status].label}
                   </span>
-                </div>
                 <form className="quantity-form" onSubmit={saveQuantity}>
-                  <label htmlFor="key-quantity">Quantidade de chaves</label>
+                  <label htmlFor="key-quantity">Nº de cópias</label>
                   <div>
                     <input
                       id="key-quantity"
@@ -498,19 +477,21 @@ export default function App() {
                       max="2147483647"
                       step="1"
                       required
-                      placeholder={quantityLoading ? "Carregando..." : "Ex.: 1 ou 2"}
+                      placeholder={quantityLoading ? "Carregando..." : "0"}
                       disabled={quantityLoading || quantitySaving}
-                      value={quantityDrafts[selected.id] ?? String(quantities[selected.id] ?? "")}
+                      value={quantityDrafts[selected.id] ?? String(quantities[selected.id] ?? 0)}
                       onChange={(event) => setQuantityDrafts((current) => ({ ...current, [selected.id]: event.target.value }))}
                     />
                     <button type="submit" disabled={quantityLoading || quantitySaving}>
-                      {quantitySaving ? "Salvando..." : "Salvar quantidade"}
+                      {quantitySaving ? "Salvando..." : "Salvar"}
                     </button>
                   </div>
                   {quantityError && <p role="alert">{quantityError}</p>}
                 </form>
+                  </div>
+                </div>
                 {selected.status === "staff" && (
-                  <button className="return-button" onClick={quickReturn}>
+                  <button className="return-button" disabled={movementLoading || movementSaving || !!movementError} onClick={quickReturn}>
                     <Icon name="box" size={17} /> Devolver para a caixa
                   </button>
                 )}
@@ -526,36 +507,24 @@ export default function App() {
                     <h3>Registrar movimentação</h3>
                   </div>
                 </div>
-                <div className="field-row">
-                  <label>
-                    Novo status
-                    <select
-                      value={form.status}
-                      onChange={(e) => setForm({ ...form, status: e.target.value as Status })}
-                    >
-                      {(Object.keys(STATUS) as Status[]).map((key) => (
-                        <option key={key} value={key}>
-                          {STATUS[key].label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Via / cópia
-                    <select
-                      value={form.copy}
-                      onChange={(e) => setForm({ ...form, copy: e.target.value as CopyType })}
-                    >
-                      <option>Cópia 1</option>
-                      <option>Cópia 2</option>
-                      <option>Jogo completo</option>
-                    </select>
-                  </label>
-                </div>
+                <p className="form-help">Escolha a situação e informe quem está registrando a movimentação.</p>
+                <fieldset className="status-options">
+                  <legend>1. Onde estão as chaves?</legend>
+                  {(Object.keys(STATUS) as Status[]).map((status) => (
+                    <label key={status} className={form.status === status ? "chosen" : ""}>
+                      <input type="radio" name="status" value={status} checked={form.status === status}
+                        onChange={() => setForm({ ...form, status })} />
+                      <span className="status-dot" style={{ background: STATUS[status].color }} />
+                      {STATUS[status].label}
+                    </label>
+                  ))}
+                </fieldset>
+                <p className="step-label">2. Quem é o responsável?</p>
                 <label>
                   Nome completo
                   <input
                     required
+                    maxLength={200}
                     value={form.person}
                     onChange={(e) => setForm({ ...form, person: e.target.value })}
                     placeholder="Quem pegou ou devolveu?"
@@ -581,6 +550,7 @@ export default function App() {
                 <label>
                   Observação <em>opcional</em>
                   <textarea
+                    maxLength={2000}
                     value={form.note}
                     onChange={(e) => setForm({ ...form, note: e.target.value })}
                     placeholder="Ex.: Vistoria, limpeza fina, reparo..."
@@ -590,8 +560,9 @@ export default function App() {
                 <p className="timestamp-note">
                   <Icon name="clock" size={14} /> Data e hora serão registradas automaticamente
                 </p>
-                <button className="submit-button" type="submit">
-                  <Icon name="check" size={17} /> Salvar movimentação
+                {movementError && <p className="form-error" role="alert">{movementError}</p>}
+                <button className="submit-button" type="submit" disabled={movementLoading || movementSaving}>
+                  <Icon name="check" size={17} /> {movementLoading ? "Carregando registros..." : movementSaving ? "Salvando..." : "Salvar movimentação"}
                 </button>
               </form>
 
@@ -621,7 +592,7 @@ export default function App() {
                           </div>
                           <h4>{item.person}</h4>
                           <p>
-                            {item.company} <span>•</span> {item.copy}
+                            {item.company}
                           </p>
                           {item.note && <blockquote>{item.note}</blockquote>}
                           <time>{formatDate(item.date)}</time>

@@ -1,0 +1,121 @@
+{
+  "version": "8",
+  "dialect": "postgres",
+  "id": "b9351039-962b-43f8-adbd-de103be3f498",
+  "prevIds": [
+    "d62cc72e-d16d-4232-835a-8b8c66ed805c"
+  ],
+  "ddl": [
+    {
+      "isRlsEnabled": false,
+      "name": "key_movements",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "key_quantities",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "key_movements"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "unit_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "key_movements"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "movement",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "key_movements"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "key_movements"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "unit_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "key_quantities"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "quantity",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "key_quantities"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "key_movements_pkey",
+      "schema": "public",
+      "table": "key_movements",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "unit_id"
+      ],
+      "nameExplicit": false,
+      "name": "key_quantities_pkey",
+      "schema": "public",
+      "table": "key_quantities",
+      "entityType": "pks"
+    }
+  ],
+  "renames": []
+}
